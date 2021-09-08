@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: influxdb-svc
+spec:
+  selector:
+    app: influxdb
+  ports:
+    - protocol: TCP
+      name: influxdb
+      port: 8086
+      targetPort: 8086
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata: 
+  labels: 
+    type: local
+  name: influxdb-volume
+spec: 
+  accessModes: 
+    - ReadWriteOnce
+  capacity: 
+    storage: 500Mi
+  hostPath: 
+    path: /mnt/data_influxdb
+  storageClassName: manual
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: influxdb-volume-claim
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: influxdb-deployment
+spec:
+  selector:
+    matchLabels:
+      app: influxdb
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: influxdb
+    spec:
+      containers:
+        - image: influxdb_image
+          imagePullPolicy: Never
+          name: influxdb
+          env:
+            # Use secret in real usage
+            - name: INFLUXDB_ROOT_PASSWORD
+              value: password
+          ports:
+            - containerPort: 8086
+              name: influxdb
+          volumeMounts:
+            - name: influxdb-volume
+              mountPath: /var/lib/influxdb
+      volumes:
+        - name: influxdb-volume
+          persistentVolumeClaim:
+            claimName: influxdb-volume-claim
